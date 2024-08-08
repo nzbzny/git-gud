@@ -1,5 +1,8 @@
+#[allow(clippy::module_name_repetitions)]
+
 mod actions;
 mod constants;
+mod utils;
 
 use std::env;
 
@@ -8,7 +11,7 @@ fn print_usage_message() {
 
     msg += "\n\ninit: Initialize a Gud repository";
 
-    println!("{msg}")
+    println!("{msg}");
 }
 
 fn main() {
@@ -31,9 +34,11 @@ fn main() {
                 println!("usage: gud init <name>");
                 return;
             }
-            
-            actions::init::init(&args[2]);
-                
+
+            let ignore = utils::process_ignore_file();
+
+            let action = actions::init::InitAction::from(ignore.clone());
+            action.run(&args[2]);
         }
         _ => {
             println!("Unknown command: {}", args.join(" "));
