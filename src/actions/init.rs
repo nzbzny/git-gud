@@ -2,8 +2,12 @@ use serde_json::{json, Map, Value};
 use std::{
     collections::HashSet,
     fs::{self, DirEntry},
+    io::Read,
+    path::Path,
 };
 use xxhash_rust::xxh3::xxh3_128;
+
+use crate::utils::{lz4_compress, zlib_compress};
 
 pub struct InitAction {
     ignore: HashSet<String>,
@@ -33,14 +37,40 @@ impl InitAction {
         json.insert(dirname, json!(obj));
     }
 
+    fn write_object_file(hash_value: &String, contents: &[u8]) {
+        let dir_name: String = hash_value.chars().take(2).collect();
+        let full_dir_name = "./.gud/objects/".to_owned() + &dir_name;
+
+        if !Path::new(&full_dir_name).exists() {
+            match fs::create_dir(&full_dir_name) {
+                Ok(_) => {}
+                Err(e) => {
+                    panic!("Failed to initialize directory: {full_dir_name} with error: {e}");
+                }
+            }
+        }
+
+        let filename = full_dir_name + "/" + hash_value;
+
+        match fs::write(&filename, zlib_compress(contents)) {
+            Ok(_) => {}
+            Err(e) => {
+                panic!("Failed to write object file {filename} with error {e}");
+            }
+        }
+    }
+
     fn handle_file(parent: &str, filename: String, json: &mut Map<String, Value>) {
         let path = parent.to_owned() + &filename;
         let contents_r = fs::read_to_string(&path);
 
         match contents_r {
             Ok(contents) => {
-                let hash_value: u128 = xxh3_128(contents.as_bytes());
-                json.insert(filename, hash_value.to_string().into());
+                let contents_bytes = contents.as_bytes();
+                let hash_value = xxh3_128(contents_bytes).to_string();
+
+                Self::write_object_file(&hash_value, contents_bytes);
+                json.insert(filename, hash_value.into());
             }
             Err(e) => {
                 println!("Failed to read file: {path} with error: {e}");
@@ -69,6 +99,11 @@ impl InitAction {
 
     pub fn run(&self, name: &String) {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
+
+        // TODO: panic if these fail
+        let _ = fs::create_dir("./.gud");
+        let _ = fs::create_dir("./.gud/objects");
+
         let mut structure_json = json!({name: {}});
         let obj_o = structure_json[name].as_object_mut();
         let obj = obj_o.unwrap();
@@ -77,7 +112,6 @@ impl InitAction {
             self.handle_item("./", &file, obj);
         }
 
-        let _ = fs::create_dir("./.gud");
         let _ = fs::write("./.gud/hash", structure_json.to_string());
     }
 }
