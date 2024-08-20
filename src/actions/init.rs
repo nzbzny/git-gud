@@ -1,22 +1,26 @@
 use serde_json::{json, Map, Value};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::{self, DirEntry},
     io::Read,
     path::Path,
 };
 use xxhash_rust::xxh3::xxh3_128;
 
-use crate::utils::{lz4_compress, zlib_compress};
+use crate::{
+    constants::{COMPRESS_FLAG, LZ4_FLAG},
+    utils::{lz4_compress, zlib_compress},
+};
+
+#[derive(PartialEq)]
+enum CompressionType {
+    ZLIB,
+    LZ4,
+}
 
 pub struct InitAction {
     ignore: HashSet<String>,
-}
-
-impl From<HashSet<String>> for InitAction {
-    fn from(ignore: HashSet<String>) -> InitAction {
-        Self { ignore }
-    }
+    compression_type: CompressionType,
 }
 
 impl InitAction {
@@ -37,13 +41,13 @@ impl InitAction {
         json.insert(dirname, json!(obj));
     }
 
-    fn write_object_file(hash_value: &String, contents: &[u8]) {
+    fn write_object_file(&self, hash_value: &String, contents: &[u8]) {
         let dir_name: String = hash_value.chars().take(2).collect();
         let full_dir_name = "./.gud/objects/".to_owned() + &dir_name;
 
         if !Path::new(&full_dir_name).exists() {
             match fs::create_dir(&full_dir_name) {
-                Ok(_) => {}
+                Ok(()) => {}
                 Err(e) => {
                     panic!("Failed to initialize directory: {full_dir_name} with error: {e}");
                 }
@@ -52,15 +56,27 @@ impl InitAction {
 
         let filename = full_dir_name + "/" + hash_value;
 
-        match fs::write(&filename, zlib_compress(contents)) {
-            Ok(_) => {}
+        let compressed = if self.compression_type == CompressionType::LZ4 {
+            match lz4_compress(contents) {
+                Ok(comp) => comp,
+                Err(e) => {
+                    println!("Failed to compress object file: {filename} with error: {e}");
+                    contents.to_vec()
+                }
+            }
+        } else {
+            zlib_compress(contents)
+        };
+
+        match fs::write(&filename, compressed) {
+            Ok(()) => {}
             Err(e) => {
-                panic!("Failed to write object file {filename} with error {e}");
+                panic!("Failed to write object file: {filename} with error: {e}");
             }
         }
     }
 
-    fn handle_file(parent: &str, filename: String, json: &mut Map<String, Value>) {
+    fn handle_file(&self, parent: &str, filename: String, json: &mut Map<String, Value>) {
         let path = parent.to_owned() + &filename;
         let contents_r = fs::read_to_string(&path);
 
@@ -69,7 +85,7 @@ impl InitAction {
                 let contents_bytes = contents.as_bytes();
                 let hash_value = xxh3_128(contents_bytes).to_string();
 
-                Self::write_object_file(&hash_value, contents_bytes);
+                self.write_object_file(&hash_value, contents_bytes);
                 json.insert(filename, hash_value.into());
             }
             Err(e) => {
@@ -90,7 +106,7 @@ impl InitAction {
 
         if let Ok(file_type) = file.file_type() {
             if file_type.is_file() {
-                Self::handle_file(parent, filename, json);
+                self.handle_file(parent, filename, json);
             } else if file_type.is_dir() {
                 self.handle_dir(parent, filename, json);
             }
@@ -113,5 +129,19 @@ impl InitAction {
         }
 
         let _ = fs::write("./.gud/hash", structure_json.to_string());
+    }
+
+    pub fn new(ignore: HashSet<String>, args_map: &HashMap<String, String>) -> InitAction {
+        if args_map.contains_key(COMPRESS_FLAG) && args_map[COMPRESS_FLAG] == LZ4_FLAG {
+            return InitAction {
+                ignore,
+                compression_type: CompressionType::LZ4,
+            };
+        }
+
+        InitAction {
+            ignore,
+            compression_type: CompressionType::ZLIB,
+        }
     }
 }
