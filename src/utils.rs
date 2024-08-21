@@ -23,18 +23,6 @@ pub fn process_ignore_file() -> HashSet<String> {
     ignore
 }
 
-pub fn process_args(args: &[String]) -> HashMap<String, String> {
-    let mut args_map = HashMap::new();
-
-    for i in 2..args.len() {
-        if i < args.len() - 1 {
-            args_map.insert(args[i].clone(), args[i+1].clone());
-        } 
-    }
-
-    args_map
-}
-
 pub fn lz4_compress(mut uncompressed: &[u8]) -> Result<Vec<u8>>{
     let writer: Vec<u8> = vec![];
     let mut encoder = EncoderBuilder::new().build(writer)?;

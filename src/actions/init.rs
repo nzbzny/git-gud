@@ -8,6 +8,7 @@ use std::{
 use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{
+    command_line_processor::{FlagOption, Options},
     constants::{COMPRESS_FLAG, LZ4_FLAG},
     utils::{lz4_compress, zlib_compress},
 };
@@ -21,6 +22,7 @@ enum CompressionType {
 pub struct InitAction {
     ignore: HashSet<String>,
     compression_type: CompressionType,
+    options: Options,
 }
 
 impl InitAction {
@@ -113,12 +115,15 @@ impl InitAction {
         }
     }
 
-    pub fn run(&self, name: &String) {
+    // TODO: impl Action trait
+    pub fn run(&self) {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
 
         // TODO: panic if these fail
         let _ = fs::create_dir("./.gud");
         let _ = fs::create_dir("./.gud/objects");
+
+        let name = self.options.flags[&FlagOption::Name].first().unwrap();
 
         let mut structure_json = json!({name: {}});
         let obj_o = structure_json[name].as_object_mut();
@@ -131,17 +136,24 @@ impl InitAction {
         let _ = fs::write("./.gud/hash", structure_json.to_string());
     }
 
-    pub fn new(ignore: HashSet<String>, args_map: &HashMap<String, String>) -> InitAction {
-        if args_map.contains_key(COMPRESS_FLAG) && args_map[COMPRESS_FLAG] == LZ4_FLAG {
-            return InitAction {
-                ignore,
-                compression_type: CompressionType::LZ4,
-            };
+    pub fn new(ignore: HashSet<String>, options: Options) -> InitAction {
+        let mut compression_type = CompressionType::ZLIB;
+
+        if options.flags.contains_key(&FlagOption::Compression) {
+            match options.flags[&FlagOption::Compression].first() {
+                Some(val) => {
+                    if val == LZ4_FLAG {
+                        compression_type = CompressionType::LZ4;
+                    }
+                }
+                None => {}
+            }
         }
 
         InitAction {
             ignore,
-            compression_type: CompressionType::ZLIB,
+            compression_type,
+            options,
         }
     }
 }

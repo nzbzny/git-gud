@@ -1,6 +1,6 @@
 #[allow(clippy::module_name_repetitions)]
 mod actions;
-mod args_processor;
+mod command_line_processor;
 mod constants;
 mod utils;
 
@@ -22,24 +22,25 @@ fn main() {
         return;
     }
 
-    match args[1].as_str() {
-        "--help" => {
+    let options = command_line_processor::process_args(args.clone());
+
+    match options.command {
+        command_line_processor::CommandType::Help => {
             print_usage_message();
         }
-        "--version" => {
+        command_line_processor::CommandType::Version => {
             println!("{}", constants::VERSION);
         }
-        "init" => {
+        command_line_processor::CommandType::Init => {
             if args.len() < 3 {
                 println!("usage: gud init <name>");
                 return;
             }
 
             let ignore = utils::process_ignore_file();
-            let args_map = utils::process_args(&args);
 
-            let action = actions::init::InitAction::new(ignore, &args_map);
-            action.run(args.last().unwrap());
+            let action = actions::init::InitAction::new(ignore, options);
+            action.run();
         }
         _ => {
             println!("Unknown command: {}", args.join(" "));
