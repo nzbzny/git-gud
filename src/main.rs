@@ -1,5 +1,6 @@
 #[allow(clippy::module_name_repetitions)]
 mod actions;
+mod args_processor;
 mod constants;
 mod utils;
 
@@ -21,7 +22,6 @@ fn main() {
         return;
     }
 
-    // TODO: consume the args as you go rather than the way utils::process_args currently does it
     match args[1].as_str() {
         "--help" => {
             print_usage_message();
