@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::Peekable, slice::Iter};
 
 #[derive(Clone)]
 pub enum CommandType {
@@ -9,7 +9,7 @@ pub enum CommandType {
     Unknown,
 }
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub enum FlagOption {
     Compression,
     Name,
@@ -20,47 +20,54 @@ pub struct Options {
     pub flags: HashMap<FlagOption, Vec<String>>,
 }
 
-fn command_strs() -> HashMap<String, CommandType> {
-    // TODO: lazily evaluate this globally somewhere
-    vec![
-        ("add".to_string(), CommandType::Add),
-        ("--help".to_string(), CommandType::Help),
-        ("init".to_string(), CommandType::Init),
-        ("--version".to_string(), CommandType::Version),
-    ]
-    .into_iter()
-    .collect()
-}
-
 fn process_command_flags(
-    command: &CommandType,
-    args: Vec<String>,
+    arg_it: &mut Peekable<Iter<String>>,
     flags: &mut HashMap<FlagOption, Vec<String>>,
 ) {
+    while let Some(flag_option) = arg_it.next() {
+        match flag_option.as_str() {
+            "--compression" => {
+                match arg_it.next() {
+                    Some(val) => flags.insert(FlagOption::Compression, vec![val.to_string()]),
+                    None => panic!("Compression flag set with no option specified."),
+                };
+            }
+            _ => {
+                match arg_it.peek() {
+                    Some(_) => println!("Unknown argument: {flag_option}"),
+                    None => {
+                        flags.insert(FlagOption::Name, vec![flag_option.to_string()]);
+                    }
+                };
+            }
+        };
+    }
 }
 
-pub fn process_args(args: Vec<String>) -> Options {
+pub fn process_args(args: &[String]) -> Options {
     let mut command = CommandType::Unknown;
 
     let mut flags: HashMap<FlagOption, Vec<String>> = HashMap::new();
-    let commands = command_strs();
 
-    for i in 1..args.len() {
-        if commands.contains_key(&args[i]) {
-            command = commands[&args[i]].clone();
-            process_command_flags(&command, args.into_iter().skip(i).collect(), &mut flags);
+    let mut arg_it = args.iter().peekable();
 
-            break;
-        }
-        match args[i].as_str() {
-            // TODO: support addition args like --path
+    // first argument is the gud filename, so consume the first argument and ignore
+    let _ = arg_it.next();
+
+    while let Some(arg) = arg_it.next() {
+        match arg.as_str() {
+            "add" => command = CommandType::Add,
+            "--help" => command = CommandType::Help,
+            "--version" => command = CommandType::Version,
+            "init" => command = CommandType::Init,
             "-C" => {
                 println!("-C flag not yet supported. Continuing.");
+                continue;
             }
-            _ => {
-                panic!("Unknown argument: {}", args[i]);
-            }
+            _ => println!("Unknown argument: {arg}"),
         }
+
+        process_command_flags(&mut arg_it, &mut flags);
     }
 
     Options { command, flags }

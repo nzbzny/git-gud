@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
-use std::io::{self, Result};
+use std::io;
 
 use lz4::{Decoder, EncoderBuilder};
 use miniz_oxide::deflate::compress_to_vec;
@@ -23,7 +23,7 @@ pub fn process_ignore_file() -> HashSet<String> {
     ignore
 }
 
-pub fn lz4_compress(mut uncompressed: &[u8]) -> Result<Vec<u8>>{
+pub fn lz4_compress(mut uncompressed: &[u8]) -> std::io::Result<Vec<u8>> {
     let writer: Vec<u8> = vec![];
     let mut encoder = EncoderBuilder::new().build(writer)?;
     io::copy(&mut uncompressed, &mut encoder)?;
@@ -32,7 +32,7 @@ pub fn lz4_compress(mut uncompressed: &[u8]) -> Result<Vec<u8>>{
     Ok(output)
 }
 
-pub fn lz4_decompress(compressed: &[u8]) -> Result<Vec<u8>> {
+pub fn lz4_decompress(compressed: &[u8]) -> std::io::Result<Vec<u8>> {
     let mut decoder = Decoder::new(compressed)?;
     let mut output: Vec<u8> = vec![];
     io::copy(&mut decoder, &mut output)?;
@@ -44,6 +44,7 @@ pub fn zlib_compress(uncompressed: &[u8]) -> Vec<u8> {
     compress_to_vec(uncompressed, 6)
 }
 
-// pub fn zlib_decompress(compressed: &[u8])-> Result<Vec<u8>, DecompressError> {
-//     return decompress_to_vec_with_limit(compressed, 5000000);
-// }
+pub fn zlib_decompress(compressed: &[u8]) -> core::result::Result<Vec<u8>, DecompressError> {
+    // TODO: pick a good number
+    decompress_to_vec_with_limit(compressed, 5_000_000)
+}

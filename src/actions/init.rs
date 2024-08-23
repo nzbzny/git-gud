@@ -2,27 +2,28 @@ use serde_json::{json, Map, Value};
 use std::{
     collections::{HashMap, HashSet},
     fs::{self, DirEntry},
-    io::Read,
     path::Path,
 };
 use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{
-    command_line_processor::{FlagOption, Options},
-    constants::{COMPRESS_FLAG, LZ4_FLAG},
+    command_line_processor::FlagOption,
+    constants::LZ4_FLAG,
     utils::{lz4_compress, zlib_compress},
 };
 
+use super::action::Action;
+
 #[derive(PartialEq)]
 enum CompressionType {
-    ZLIB,
-    LZ4,
+    Zlib,
+    Lz4,
 }
 
 pub struct InitAction {
     ignore: HashSet<String>,
     compression_type: CompressionType,
-    options: Options,
+    flags: HashMap<FlagOption, Vec<String>>,
 }
 
 impl InitAction {
@@ -58,7 +59,7 @@ impl InitAction {
 
         let filename = full_dir_name + "/" + hash_value;
 
-        let compressed = if self.compression_type == CompressionType::LZ4 {
+        let compressed = if self.compression_type == CompressionType::Lz4 {
             match lz4_compress(contents) {
                 Ok(comp) => comp,
                 Err(e) => {
@@ -115,15 +116,33 @@ impl InitAction {
         }
     }
 
-    // TODO: impl Action trait
-    pub fn run(&self) {
+    pub fn new(ignore: HashSet<String>, flags: HashMap<FlagOption, Vec<String>>) -> InitAction {
+        let mut compression_type = CompressionType::Zlib;
+
+        if flags.contains_key(&FlagOption::Compression) {
+            if let Some(val) = flags[&FlagOption::Compression].first() {
+                if val == LZ4_FLAG {
+                    compression_type = CompressionType::Lz4;
+                }
+            }
+        }
+
+        InitAction {
+            ignore,
+            compression_type,
+            flags,
+        }
+    }
+}
+
+impl Action for InitAction {
+    fn run(&self) {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
 
         // TODO: panic if these fail
         let _ = fs::create_dir("./.gud");
         let _ = fs::create_dir("./.gud/objects");
-
-        let name = self.options.flags[&FlagOption::Name].first().unwrap();
+        let name = self.flags[&FlagOption::Name].first().unwrap();
 
         let mut structure_json = json!({name: {}});
         let obj_o = structure_json[name].as_object_mut();
@@ -134,26 +153,5 @@ impl InitAction {
         }
 
         let _ = fs::write("./.gud/hash", structure_json.to_string());
-    }
-
-    pub fn new(ignore: HashSet<String>, options: Options) -> InitAction {
-        let mut compression_type = CompressionType::ZLIB;
-
-        if options.flags.contains_key(&FlagOption::Compression) {
-            match options.flags[&FlagOption::Compression].first() {
-                Some(val) => {
-                    if val == LZ4_FLAG {
-                        compression_type = CompressionType::LZ4;
-                    }
-                }
-                None => {}
-            }
-        }
-
-        InitAction {
-            ignore,
-            compression_type,
-            options,
-        }
     }
 }

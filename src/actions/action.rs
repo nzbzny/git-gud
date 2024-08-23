@@ -1,3 +1,3 @@
 pub trait Action {
-    fn run(&self) -> ();
+    fn run(&self);
 }

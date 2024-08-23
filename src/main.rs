@@ -6,6 +6,8 @@ mod utils;
 
 use std::env;
 
+use actions::action::Action;
+
 fn print_usage_message() {
     let mut msg = "usage: gud [[--version] [--help] <command> <args>]".to_string();
 
@@ -22,7 +24,7 @@ fn main() {
         return;
     }
 
-    let options = command_line_processor::process_args(args.clone());
+    let options = command_line_processor::process_args(&args);
 
     match options.command {
         command_line_processor::CommandType::Help => {
@@ -39,7 +41,7 @@ fn main() {
 
             let ignore = utils::process_ignore_file();
 
-            let action = actions::init::InitAction::new(ignore, options);
+            let action = actions::init::InitAction::new(ignore, options.flags);
             action.run();
         }
         _ => {
