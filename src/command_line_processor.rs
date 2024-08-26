@@ -3,6 +3,7 @@ use std::{collections::HashMap, iter::Peekable, slice::Iter};
 #[derive(Clone)]
 pub enum CommandType {
     Add,
+    Diff,
     Help,
     Init,
     Version,
@@ -57,9 +58,10 @@ pub fn process_args(args: &[String]) -> Options {
     while let Some(arg) = arg_it.next() {
         match arg.as_str() {
             "add" => command = CommandType::Add,
+            "diff" => command = CommandType::Diff,
+            "init" => command = CommandType::Init,
             "--help" => command = CommandType::Help,
             "--version" => command = CommandType::Version,
-            "init" => command = CommandType::Init,
             "-C" => {
                 println!("-C flag not yet supported. Continuing.");
                 continue;

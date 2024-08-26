@@ -27,15 +27,18 @@ fn main() {
     let options = command_line_processor::process_args(&args);
 
     match options.command {
-        command_line_processor::CommandType::Help => {
-            print_usage_message();
-        }
-        command_line_processor::CommandType::Version => {
-            println!("{}", constants::VERSION);
+        command_line_processor::CommandType::Diff => {
+            if args.len() < 3 {
+                println!("usage: gud init [flags] <name>");
+                return;
+            }
+
+            let action = actions::diff::DiffAction::new(options.flags);
+            action.run();
         }
         command_line_processor::CommandType::Init => {
             if args.len() < 3 {
-                println!("usage: gud init <name>");
+                println!("usage: gud init [flags] <name>");
                 return;
             }
 
@@ -43,6 +46,12 @@ fn main() {
 
             let action = actions::init::InitAction::new(ignore, options.flags);
             action.run();
+        }
+        command_line_processor::CommandType::Help => {
+            print_usage_message();
+        }
+        command_line_processor::CommandType::Version => {
+            println!("{}", constants::VERSION);
         }
         _ => {
             println!("Unknown command: {}", args.join(" "));

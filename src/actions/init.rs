@@ -12,13 +12,7 @@ use crate::{
     utils::{lz4_compress, zlib_compress},
 };
 
-use super::action::Action;
-
-#[derive(PartialEq)]
-enum CompressionType {
-    Zlib,
-    Lz4,
-}
+use super::{action::Action, types::CompressionType};
 
 pub struct InitAction {
     ignore: HashSet<String>,
