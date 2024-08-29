@@ -1,5 +1,6 @@
 use std::collections::HashSet;
-use std::fs;
+use std::fs::FileType;
+use std::fs::{self, ReadDir};
 use std::io;
 
 use lz4::{Decoder, EncoderBuilder};
@@ -47,4 +48,28 @@ pub fn zlib_compress(uncompressed: &[u8]) -> Vec<u8> {
 pub fn zlib_decompress(compressed: &[u8]) -> core::result::Result<Vec<u8>, DecompressError> {
     // TODO: pick a good number
     decompress_to_vec_with_limit(compressed, 5_000_000)
+}
+
+fn is_project_root(mut dir: ReadDir) -> bool {
+    dir.any(|file_r| {
+        file_r.is_ok_and(|file| {
+            file.file_type().is_ok_and(|file_type| file_type.is_dir()) && file.file_name() == ".gud"
+        })
+    })
+}
+
+pub fn find_path_to_project_root() -> String {
+    let mut current_dir = ".".to_string();
+
+    let mut root_path = "";
+
+    while let Ok(dir) = fs::read_dir(&current_dir) {
+        if is_project_root(dir) {
+            // TODO: prepend to root path
+        } else {
+            current_dir = "../".to_owned() + &current_dir;
+        }
+    }
+
+    panic!("Encountered error while attempting to traverse filesystem. Project is not a gud repository?")
 }

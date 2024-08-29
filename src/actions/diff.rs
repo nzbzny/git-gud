@@ -1,10 +1,10 @@
 use std::{collections::HashMap, fs};
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::{
     command_line_processor::FlagOption,
-    constants::LZ4_FLAG,
+    constants::{LZ4_FLAG, TREE_KEY},
     utils::{lz4_compress, zlib_compress},
 };
 
@@ -89,7 +89,7 @@ impl Action for DiffAction {
             }
         };
 
-        let mut json_struct: Value = match fs::read_to_string("./.gud/hash") {
+        let json_struct: Value = match fs::read_to_string("./.gud/hash") {
             Ok(obj) => {
                 // TODO: error handling if this fails
                 serde_json::from_str(obj.as_str()).unwrap()
@@ -100,22 +100,18 @@ impl Action for DiffAction {
             }
         };
 
-        // TODO: might want to restructure the original json so that the repo name is stored
-        // somewhere else, otherwise we're going to be doing this a lot
-        let repo_name = if let Some(map) = json_struct.as_object() {
-            // TODO: error handling
-            map.keys().next().unwrap()
-        } else {
-            panic!("Unable to properly deserialize hash object");
-        };
-        json_struct = json_struct.get(repo_name).unwrap().clone();
+        match json_struct.get(TREE_KEY) {
+            Some(tree_struct) => {
+                let orig = self.get_original_hash(&tree_struct);
+                println!("Original hash: {orig}");
 
-        let orig = self.get_original_hash(&json_struct);
-        println!("Original hash: {orig}");
-        if self.file_has_changed(curr.as_bytes(), orig) {
-            // do diff
-        } else {
-            println!("\n");
+                if self.file_has_changed(curr.as_bytes(), orig) {
+                    // do diff
+                } else {
+                    println!("\n");
+                }
+            }
+            None => panic!("Error in parsing gud tree. Repository is not a gud repository.")
         }
     }
 }

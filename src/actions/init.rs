@@ -8,7 +8,7 @@ use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{
     command_line_processor::FlagOption,
-    constants::LZ4_FLAG,
+    constants::{LZ4_FLAG, REPO_NAME_KEY, TREE_KEY},
     utils::{lz4_compress, zlib_compress},
 };
 
@@ -138,8 +138,9 @@ impl Action for InitAction {
         let _ = fs::create_dir("./.gud/objects");
         let name = self.flags[&FlagOption::Name].first().unwrap();
 
-        let mut structure_json = json!({name: {}});
-        let obj_o = structure_json[name].as_object_mut();
+        let mut structure_json = json!({TREE_KEY: {}, REPO_NAME_KEY: name});
+        
+        let obj_o = structure_json[TREE_KEY].as_object_mut();
         let obj = obj_o.unwrap();
 
         for file in current_dir.flatten() {
