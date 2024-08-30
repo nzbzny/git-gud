@@ -33,7 +33,7 @@ fn main() {
                 return;
             }
 
-            let action = actions::diff::DiffAction::new(options.flags);
+            let action = actions::diff::DiffAction::new(options);
             action.run();
         }
         command_line_processor::CommandType::Init => {

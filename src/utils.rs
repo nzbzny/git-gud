@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::fs::FileType;
 use std::fs::{self, ReadDir};
 use std::io;
 
@@ -58,18 +57,36 @@ fn is_project_root(mut dir: ReadDir) -> bool {
     })
 }
 
-pub fn find_path_to_project_root() -> String {
-    let mut current_dir = ".".to_string();
+pub fn find_path_from_project_root() -> Vec<String> {
+    let mut path_to_current_dir = match std::env::current_dir() {
+        Ok(dir) => dir,
+        Err(e) => panic!(
+            "Encountered error {e} when trying to get path to working directory. Terminating"
+        ),
+    };
 
-    let mut root_path = "";
+    let mut root_path: Vec<String> = vec![];
 
-    while let Ok(dir) = fs::read_dir(&current_dir) {
+    while let Ok(dir) = path_to_current_dir.read_dir() {
         if is_project_root(dir) {
-            // TODO: prepend to root path
-        } else {
-            current_dir = "../".to_owned() + &current_dir;
+            return root_path;
         }
+
+        if let Some(dir_name) = path_to_current_dir.file_name() {
+            if let Some(dir_str) = dir_name.to_str() {
+                root_path.insert(0, dir_str.to_string() + "/");
+
+                if let Some(path) = path_to_current_dir.parent() {
+                    path_to_current_dir = path.to_path_buf();
+
+                    // this is the only case where we don't want to panic
+                    continue;
+                }
+            }
+        }
+
+        panic!("Unable to get information for directory {}", path_to_current_dir.to_str().unwrap_or("UNKNOWN_DIRECTORY_PATH"));
     }
 
-    panic!("Encountered error while attempting to traverse filesystem. Project is not a gud repository?")
+    root_path
 }

@@ -1,5 +1,7 @@
 use std::{collections::HashMap, iter::Peekable, slice::Iter};
 
+use crate::utils::find_path_from_project_root;
+
 #[derive(Clone)]
 pub enum CommandType {
     Add,
@@ -19,6 +21,7 @@ pub enum FlagOption {
 pub struct Options {
     pub command: CommandType,
     pub flags: HashMap<FlagOption, Vec<String>>,
+    pub root_path: Vec<String>,
 }
 
 fn process_command_flags(
@@ -72,5 +75,9 @@ pub fn process_args(args: &[String]) -> Options {
         process_command_flags(&mut arg_it, &mut flags);
     }
 
-    Options { command, flags }
+    Options {
+        command,
+        flags,
+        root_path: find_path_from_project_root(),
+    }
 }
