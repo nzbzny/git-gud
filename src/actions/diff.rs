@@ -1,11 +1,11 @@
 use std::fs;
 
 use serde_json::Value;
+use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{
     command_line_processor::{FlagOption, Options},
     constants::{LZ4_FLAG, TREE_KEY},
-    utils::{lz4_compress, zlib_compress},
 };
 
 use super::{action::Action, types::CompressionType};
@@ -18,13 +18,7 @@ pub struct DiffAction {
 
 impl DiffAction {
     pub fn file_has_changed(&self, curr: &[u8], orig: &str) -> bool {
-        let curr_hash = if self.compression_type == CompressionType::Lz4 {
-            lz4_compress(curr).unwrap()
-        } else {
-            zlib_compress(curr)
-        };
-
-        curr_hash != orig.as_bytes().to_vec()
+        xxh3_128(curr).to_string() != orig
     }
 
     pub fn get_original_hash(&self, json_struct: &Value) -> String {
@@ -39,7 +33,7 @@ impl DiffAction {
                     if val.is_object() {
                         current_json = val;
                     } else if val.is_string() {
-                        return val.to_string();
+                        return val.to_string().trim_matches('"').to_string();
                     } else {
                         panic!("Got unknown val type: {val}");
                     }
