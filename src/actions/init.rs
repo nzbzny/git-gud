@@ -133,12 +133,18 @@ impl Action for InitAction {
     fn run(&self) {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
 
-        // TODO: panic if these fail
-        let _ = fs::create_dir("./.gud");
-        let _ = fs::create_dir("./.gud/objects");
+        if let Err(e) = fs::create_dir("./.gud") {
+            panic!("Encountered error {e} while attempting to make .gud directory");
+        }
+        if let Err(e) = fs::create_dir("./.gud/objects") {
+            panic!("Encountered error {e} while attempting to initialize objects directory");
+        }
+
         let name = self.flags[&FlagOption::Name].first().unwrap();
 
         let mut structure_json = json!({TREE_KEY: {}, REPO_NAME_KEY: name});
+        // TODO: store compression type in hash object
+        // TODO: rename hash file since it's no longer just the hash
 
         let obj_o = structure_json[TREE_KEY].as_object_mut();
         let obj = obj_o.unwrap();
@@ -147,6 +153,8 @@ impl Action for InitAction {
             self.handle_item("./", &file, obj);
         }
 
-        let _ = fs::write("./.gud/hash", structure_json.to_string());
+        if let Err(e) = fs::write("./.gud/hash", structure_json.to_string()) {
+            panic!("Encountered error {e} while attempting to write gud hash file");
+        }
     }
 }

@@ -24,7 +24,7 @@ impl DiffAction {
             zlib_compress(curr)
         };
 
-        curr_hash == orig.as_bytes().to_vec()
+        curr_hash != orig.as_bytes().to_vec()
     }
 
     pub fn get_original_hash(&self, json_struct: &Value) -> String {
@@ -44,9 +44,7 @@ impl DiffAction {
                         panic!("Got unknown val type: {val}");
                     }
                 }
-                None => {
-                    panic!("Failed to get original hash for {full_filename}");
-                }
+                None => break,
             }
         }
 
@@ -91,23 +89,23 @@ impl Action for DiffAction {
 
         let to_project_root = "../".repeat(self.root_path.len());
         let json_struct: Value = match fs::read_to_string(to_project_root + ".gud/hash") {
-            Ok(obj) => {
-                // TODO: error handling if this fails
-                serde_json::from_str(obj.as_str()).unwrap()
-            }
+            Ok(obj) => match serde_json::from_str(obj.as_str()) {
+                Ok(json_obj) => json_obj,
+                Err(e) => {
+                    panic!("Encountered error {e} while attempting to parse gud hash json object")
+                }
+            },
             Err(e) => {
-                println!("Encountered error {e} while trying to read gud hash file");
-                return;
+                panic!("Encountered error {e} while attempting to read gud hash file");
             }
         };
 
         match json_struct.get(TREE_KEY) {
             Some(tree_struct) => {
                 let orig = self.get_original_hash(tree_struct);
-                //TODO: NOAH delete
-                println!("Original hash: {orig}");
 
-                if self.file_has_changed(curr.as_bytes(), &orig) {
+                if !orig.is_empty() && self.file_has_changed(curr.as_bytes(), &orig) {
+                    println!("file has changed");
                     // do diff
                 } else {
                     println!("\n");
