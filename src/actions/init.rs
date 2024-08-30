@@ -139,7 +139,7 @@ impl Action for InitAction {
         let name = self.flags[&FlagOption::Name].first().unwrap();
 
         let mut structure_json = json!({TREE_KEY: {}, REPO_NAME_KEY: name});
-        
+
         let obj_o = structure_json[TREE_KEY].as_object_mut();
         let obj = obj_o.unwrap();
 

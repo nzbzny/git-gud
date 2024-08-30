@@ -85,7 +85,12 @@ pub fn find_path_from_project_root() -> Vec<String> {
             }
         }
 
-        panic!("Unable to get information for directory {}", path_to_current_dir.to_str().unwrap_or("UNKNOWN_DIRECTORY_PATH"));
+        panic!(
+            "Unable to get information for directory {}",
+            path_to_current_dir
+                .to_str()
+                .unwrap_or("UNKNOWN_DIRECTORY_PATH")
+        );
     }
 
     root_path

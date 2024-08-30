@@ -65,13 +65,11 @@ impl DiffAction {
         }
 
         match options.flags[&FlagOption::Name].first() {
-            Some(name) => {
-                Self {
-                    compression_type,
-                    filename: name.to_string(),
-                    root_path: options.root_path,
-                }
-            }
+            Some(name) => Self {
+                compression_type,
+                filename: name.to_string(),
+                root_path: options.root_path,
+            },
             None => {
                 panic!("Usage: gud diff [flags] <filename>");
             }
