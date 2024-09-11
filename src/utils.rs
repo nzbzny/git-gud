@@ -95,3 +95,11 @@ pub fn find_path_from_project_root() -> Vec<String> {
 
     root_path
 }
+
+pub fn get_path_to_project_root(root_path: &Vec<String>) -> String {
+    "../".repeat(root_path.len())
+}
+
+pub fn get_object_file_dir_name(hash_value: &str) -> String {
+    hash_value.chars().take(2).collect()
+}

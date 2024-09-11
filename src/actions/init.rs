@@ -9,10 +9,10 @@ use xxhash_rust::xxh3::xxh3_128;
 use crate::{
     command_line_processor::FlagOption,
     constants::{
-        COMPRESSION_TYPE_KEY, DEFAULT_FLAG, GUD_FOLDER, GUD_OBJECTS_FILENAME, LZ4_FLAG,
+        COMPRESSION_TYPE_KEY, DEFAULT_FLAG, GUD_FOLDER, GUD_OBJECTS_FOLDER_NAME, LZ4_FLAG,
         REPO_NAME_KEY, TREE_KEY, ZLIB_FLAG,
     },
-    utils::{lz4_compress, zlib_compress},
+    utils::{get_object_file_dir_name, lz4_compress, zlib_compress},
 };
 
 use super::{action::Action, types::CompressionType};
@@ -27,8 +27,8 @@ impl InitAction {
     fn handle_dir(&self, parent: &str, dirname: String, json: &mut Map<String, Value>) {
         let new_parent = parent.to_owned() + &dirname + "/";
 
-        let current_dir = fs::read_dir(&new_parent)
-            .unwrap_or_else(|_| panic!("Failed to read directory: {new_parent}"));
+        let current_dir =
+            fs::read_dir(&new_parent).expect(&format!("Failed to read directory: {new_parent}"));
 
         let mut structure_json = json!({});
         let obj_o = structure_json.as_object_mut();
@@ -42,16 +42,12 @@ impl InitAction {
     }
 
     fn write_object_file(&self, hash_value: &String, contents: &[u8]) {
-        let dir_name: String = hash_value.chars().take(2).collect();
-        let full_dir_name = "./.gud/objects/".to_owned() + &dir_name;
+        let dir_name: String = get_object_file_dir_name(hash_value);
+        let full_dir_name = "./".to_owned() + GUD_FOLDER + GUD_OBJECTS_FOLDER_NAME + &dir_name;
 
         if !Path::new(&full_dir_name).exists() {
-            match fs::create_dir(&full_dir_name) {
-                Ok(()) => {}
-                Err(e) => {
-                    panic!("Failed to initialize directory: {full_dir_name} with error: {e}");
-                }
-            }
+            fs::create_dir(&full_dir_name)
+                .expect(&format!("Failed to initialize directory: {full_dir_name}"));
         }
 
         let filename = full_dir_name + "/" + hash_value;
@@ -68,35 +64,24 @@ impl InitAction {
             zlib_compress(contents)
         };
 
-        match fs::write(&filename, compressed) {
-            Ok(()) => {}
-            Err(e) => {
-                panic!("Failed to write object file: {filename} with error: {e}");
-            }
-        }
+        fs::write(&filename, compressed).expect(&format!("Failed to write object file {filename}"));
     }
 
     fn handle_file(&self, parent: &str, filename: String, json: &mut Map<String, Value>) {
         let path = parent.to_owned() + &filename;
-        let contents_r = fs::read_to_string(&path);
+        let contents = fs::read_to_string(&path).expect(&format!("Failed to read file at {path}"));
 
-        match contents_r {
-            Ok(contents) => {
-                let contents_bytes = contents.as_bytes();
-                let hash_value = xxh3_128(contents_bytes).to_string();
+        let contents_bytes = contents.as_bytes();
+        let hash_value = xxh3_128(contents_bytes).to_string();
 
-                self.write_object_file(&hash_value, contents_bytes);
-                json.insert(filename, hash_value.into());
-            }
-            Err(e) => {
-                println!("Failed to read file: {path} with error: {e}");
-            }
-        }
+        self.write_object_file(&hash_value, contents_bytes);
+        json.insert(filename, hash_value.into());
     }
 
     fn handle_item(&self, parent: &str, file: &DirEntry, json: &mut Map<String, Value>) {
         // We explicitly want the program to panic if this fails, so that we can break out of whatever
         // parent loop we're currently in.
+        // TODO: relook at this
         let filename = file.file_name().into_string().unwrap();
 
         let new_path = parent.to_owned() + &filename;
@@ -146,12 +131,10 @@ impl Action for InitAction {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
 
         let gud_path = "./".to_owned() + GUD_FOLDER;
-        if let Err(e) = fs::create_dir(&gud_path) {
-            panic!("Encountered error {e} while attempting to make .gud directory");
-        }
-        if let Err(e) = fs::create_dir(gud_path + GUD_OBJECTS_FILENAME) {
-            panic!("Encountered error {e} while attempting to initialize objects directory");
-        }
+        fs::create_dir(&gud_path)
+            .expect("Encountered error while attempting to make .gud directory");
+        fs::create_dir(gud_path + GUD_OBJECTS_FOLDER_NAME)
+            .expect("Encountered error while attempting to initialize objects directory");
 
         let name = self.flags[&FlagOption::Name].first().unwrap();
 
