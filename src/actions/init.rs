@@ -8,7 +8,10 @@ use xxhash_rust::xxh3::xxh3_128;
 
 use crate::{
     command_line_processor::FlagOption,
-    constants::{LZ4_FLAG, REPO_NAME_KEY, TREE_KEY},
+    constants::{
+        COMPRESSION_TYPE_KEY, DEFAULT_FLAG, GUD_FOLDER, GUD_OBJECTS_FILENAME, LZ4_FLAG,
+        REPO_NAME_KEY, TREE_KEY, ZLIB_FLAG,
+    },
     utils::{lz4_compress, zlib_compress},
 };
 
@@ -129,22 +132,34 @@ impl InitAction {
     }
 }
 
+fn compression_type_to_str(compression_type: &CompressionType) -> String {
+    match compression_type {
+        CompressionType::Lz4 => LZ4_FLAG,
+        CompressionType::Zlib => ZLIB_FLAG,
+        CompressionType::Default => DEFAULT_FLAG,
+    }
+    .to_string()
+}
+
 impl Action for InitAction {
     fn run(&self) {
         let current_dir = fs::read_dir(".").expect("Failed to read directory: .");
 
-        if let Err(e) = fs::create_dir("./.gud") {
+        let gud_path = "./".to_owned() + GUD_FOLDER;
+        if let Err(e) = fs::create_dir(&gud_path) {
             panic!("Encountered error {e} while attempting to make .gud directory");
         }
-        if let Err(e) = fs::create_dir("./.gud/objects") {
+        if let Err(e) = fs::create_dir(gud_path + GUD_OBJECTS_FILENAME) {
             panic!("Encountered error {e} while attempting to initialize objects directory");
         }
 
         let name = self.flags[&FlagOption::Name].first().unwrap();
 
-        let mut structure_json = json!({TREE_KEY: {}, REPO_NAME_KEY: name});
-        // TODO: store compression type in hash object
-        // TODO: rename hash file since it's no longer just the hash
+        let mut structure_json = json!({
+            TREE_KEY: {},
+            REPO_NAME_KEY: name,
+            COMPRESSION_TYPE_KEY: compression_type_to_str(&self.compression_type)
+        });
 
         let obj_o = structure_json[TREE_KEY].as_object_mut();
         let obj = obj_o.unwrap();
